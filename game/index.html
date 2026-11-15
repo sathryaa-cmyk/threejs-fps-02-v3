@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>MERIDIAN — 5v5 Tactical FPS</title>
+<style>
+  html, body { margin: 0; padding: 0; height: 100%; overflow: hidden; background: #0e1420;
+    font-family: system-ui, -apple-system, sans-serif; color: #fff; }
+  #game { display: block; width: 100vw; height: 100vh; }
+  .panel { position: absolute; pointer-events: none; }
+  #topbar { top: 14px; left: 50%; transform: translateX(-50%); text-align: center; }
+  #timer { font-size: 30px; font-weight: 800; text-shadow: 0 2px 6px #000; }
+  #score { font-size: 15px; font-weight: 700; letter-spacing: 1px; text-shadow: 0 2px 4px #000; }
+  #round { font-size: 12px; opacity: .85; letter-spacing: 2px; }
+  #sitelabel { font-size: 12px; color: #ffd27a; letter-spacing: 2px; margin-top: 2px; text-shadow: 0 2px 4px #000; }
+  #bomb { top: 74px; left: 50%; transform: translateX(-50%); font-weight: 800; font-size: 15px;
+    text-shadow: 0 2px 4px #000; display: none; }
+  #bottomleft { left: 20px; bottom: 20px; }
+  #health { font-size: 42px; font-weight: 800; line-height: 1; text-shadow: 0 2px 6px #000; }
+  #healthbar-wrap { width: 210px; height: 8px; background: rgba(255,255,255,.18); margin-top: 6px; }
+  #healthbar { height: 100%; width: 100%; background: #3fae6a; }
+  #armor { font-size: 14px; color: #8fc4ff; margin-top: 4px; text-shadow: 0 2px 4px #000; }
+  #bottomright { right: 20px; bottom: 20px; text-align: right; }
+  #ammo { font-size: 34px; font-weight: 800; text-shadow: 0 2px 6px #000; }
+  #money { font-size: 20px; font-weight: 700; color: #7ddc8a; text-shadow: 0 2px 4px #000; }
+  #crosshair { left: 50%; top: 50%; transform: translate(-50%, -50%); --gap: 5px; }
+  #crosshair .ch { position: absolute; background: #fff; box-shadow: 0 0 3px #000; }
+  #crosshair .t { left: -1px; top: calc(-11px - var(--gap)); width: 2px; height: 9px; }
+  #crosshair .b { left: -1px; top: calc(2px + var(--gap)); width: 2px; height: 9px; }
+  #crosshair .l { top: -1px; left: calc(-11px - var(--gap)); height: 2px; width: 9px; }
+  #crosshair .r { top: -1px; left: calc(2px + var(--gap)); height: 2px; width: 9px; }
+  #hitmarker { left: 50%; top: 50%; transform: translate(-50%, -50%) rotate(45deg);
+    font-size: 26px; opacity: 0; transition: opacity .12s; text-shadow: 0 0 4px #000; }
+  #banner { top: 30%; left: 50%; transform: translate(-50%, -50%); text-align: center;
+    font-size: 42px; font-weight: 900; letter-spacing: 2px; text-shadow: 0 3px 12px #000;
+    transition: opacity .5s; opacity: 0; }
+  #banner-sub { top: calc(30% + 44px); left: 50%; transform: translateX(-50%); text-align: center;
+    font-size: 17px; text-shadow: 0 2px 6px #000; transition: opacity .5s; opacity: 0; }
+  #killfeed { top: 16px; right: 20px; text-align: right; font-size: 14px; }
+  .kf-row { margin-bottom: 3px; text-shadow: 0 2px 4px #000; }
+  .kf-k { color: #ffd27a; font-weight: 700; } .kf-v { color: #8fc4ff; font-weight: 700; }
+  .kf-w { color: #ddd; font-size: 12px; }
+  #buymenu { left: 50%; top: 50%; transform: translate(-50%, -50%); width: 460px;
+    background: rgba(10, 14, 22, .92); border: 1px solid #3a4356; padding: 18px 20px;
+    display: none; pointer-events: auto; }
+  #buymenu h2 { margin: 0 0 4px; font-size: 20px; }
+  #buymenu p { margin: 0 0 12px; font-size: 13px; opacity: .75; }
+  .buy-row { display: flex; gap: 10px; padding: 8px 6px; cursor: pointer; border-bottom: 1px solid #232a38; }
+  .buy-row:hover { background: #1a2233; }
+  .buy-key { background: #2c3648; padding: 1px 8px; font-weight: 700; }
+  .buy-name { flex: 1; font-weight: 700; } .buy-stat { opacity: .7; font-size: 13px; }
+  .buy-price { font-weight: 800; }
+  #plantbar { left: 50%; bottom: 170px; transform: translateX(-50%); width: 300px; display: none; }
+  #plantlabel { text-align: center; font-weight: 700; margin-bottom: 5px; text-shadow: 0 2px 4px #000; }
+  #plantfill-wrap { height: 8px; background: rgba(255,255,255,.18); }
+  #plantfill { height: 100%; width: 0%; background: #ffb03a; }
+  #help { left: 20px; top: 16px; font-size: 13px; line-height: 1.7; opacity: .9;
+    text-shadow: 0 2px 4px #000; }
+  #death { left: 50%; bottom: 120px; transform: translateX(-50%); font-size: 20px; font-weight: 700;
+    color: #ff7a6e; display: none; text-shadow: 0 2px 6px #000; }
+  #nogl, #fatal { display: none; position: absolute; left: 50%; top: 40%; transform: translate(-50%,-50%);
+    background: #400; padding: 20px; font-weight: 700; }
+</style>
+<script type="importmap">
+{ "imports": { "three": "./vendor/three/three.module.min.js" } }
+</script>
+</head>
+<body>
+<canvas id="game"></canvas>
+<div class="panel" id="topbar">
+  <div id="timer">1:40</div>
+  <div id="score">0 — 0</div>
+  <div id="round">ROUND 1</div>
+  <div id="sitelabel">SOUTH</div>
+</div>
+<div class="panel" id="bomb"><span id="bomb-timer"></span></div>
+<div class="panel" id="bottomleft">
+  <div id="health">100</div>
+  <div id="healthbar-wrap"><div id="healthbar"></div></div>
+  <div id="armor"></div>
+</div>
+<div class="panel" id="bottomright">
+  <div id="ammo">13 / 52</div>
+  <div id="money">$800</div>
+</div>
+<div class="panel" id="crosshair"><div class="ch t"></div><div class="ch b"></div><div class="ch l"></div><div class="ch r"></div></div>
+<div class="panel" id="hitmarker">✕</div>
+<div class="panel" id="banner"></div>
+<div class="panel" id="banner-sub"></div>
+<div class="panel" id="killfeed"></div>
+<div class="panel" id="plantbar"><div id="plantlabel"></div><div id="plantfill-wrap"><div id="plantfill"></div></div></div>
+<div class="panel" id="help">WASD move · Mouse aim · Click shoot · R reload<br>B buy menu · E plant bomb (in site) · Click to lock mouse</div>
+<div class="panel" id="death"></div>
+<div class="panel" id="buymenu">
+  <h2>BUY — Round <span id="buy-round">1</span></h2>
+  <p>Press 1–5 or click. B closes. Money is shared per round, not per life.</p>
+  <div id="buy-items"></div>
+</div>
+<div id="nogl">MERIDIAN needs WebGL2 — please open it in desktop Chrome.</div>
+<div id="fatal"></div>
+<script type="module" src="./src/main.js"></script>
+</body>
+</html>
